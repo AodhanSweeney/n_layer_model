@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import ipywidgets as widgets
+from scipy import interpolate
 # Import radiative transfer utils box
 import utils
 
@@ -65,7 +66,21 @@ class n_layer_gui:
             era5_profile = np.load('tropical_profile.npy')
         elif self.togglebutton == 'Poles':
             era5_profile = np.load('polar_profile.npy')
-        print(era5_profile)
+        
+        era5_layers = np.linspace(0, self.N+1, 32)
+        cb_interp = interpolate.CubicSpline(era5_layers, era5_profile)
+        
+        profile_for_emissivities = cb_interp(np.arange(0, self.N+1))
+        
+        
+        """
+        
+        Vince, here you should do the monte carlo thing, the profile you want to fit to is "profile_for_emissivities"
+
+
+        """
+            
+   
         
         if self.calc_button.value is True:
             # Create some random emissivities to use, surface emissivity is always one, no emissivity should be zero
