@@ -25,6 +25,10 @@ class n_layer_gui:
                                                  description='Heat Flux \nTotal ($W/m^2$): ')
         widgets.interact(self.get_heatflux_slider, heatflux_slider=self.heatflux_slider)
         
+        self.togglebutton = widgets.ToggleButtons(options=['Tropics', 'Poles'], description='Profile location?', disabled=False, 
+                                                  button_style='danger')
+        widgets.interact(self.get_togglebutton, togglebutton=self.togglebutton)
+        
         #self.pertub_button = widgets.ToggleButton(value=False, description='Perturbation?',
         #                                         disabled=False, button_style='info',
         #                                         tooltip='Description')
@@ -45,6 +49,8 @@ class n_layer_gui:
         self.S0 = S0_slider
     def get_heatflux_slider(self, heatflux_slider):
         self.heatflux = heatflux_slider
+    def get_togglebutton(self, togglebutton):
+        self.togglebutton = togglebutton                    
     #def get_perturbation(self, pertub_button):
         #self.perturbation = perturbation
         #if self.perturb_button is True:
@@ -55,6 +61,12 @@ class n_layer_gui:
         Query whether track button has been toggled, and calculate the radiation matrix before plotting.
         
         """
+        if self.togglebutton == 'Tropics':
+            era5_profile = np.load('tropical_profile.npy')
+        elif self.togglebutton == 'Poles':
+            era5_profile = np.load('polar_profile.npy')
+        print(era5_profile)
+        
         if self.calc_button.value is True:
             # Create some random emissivities to use, surface emissivity is always one, no emissivity should be zero
             emmisivities = np.repeat(.05,self.N+1)
@@ -66,6 +78,7 @@ class n_layer_gui:
 
             # We also need our forcings vector
             insolation = (self.S0/4)*(1 - self.albedo)
+            
             upward_heatflux = utils.vertical_heat_flux_profile(self.N, self.heatflux, 'exponential')
             
             forcings = utils.forcings_vector(self.N, insolation, upward_heatflux)

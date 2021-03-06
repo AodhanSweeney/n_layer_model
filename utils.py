@@ -113,12 +113,9 @@ def forcings_vector(N, insolation, heat_flux_profile):
     forcings[0] = insolation*-1
     net_forcings = forcings - heat_flux_profile
     
-    
     # Forcings should also be scaled by 1/sigma
     sigma = 5.67e-8 # W * m^-2 * K^-4
-    
     one_over_sigma = 1/sigma
-    
     return(net_forcings*one_over_sigma)
 
 def temperature(total_emissivity_matrix, forcings):
