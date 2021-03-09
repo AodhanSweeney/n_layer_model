@@ -13,31 +13,30 @@ class n_layer_gui:
         Collect scalable physical parameters to be used for the N-Layer radiative model.
         
         """
+        ###############################
         self.N_slider = widgets.IntSlider(min=1, max=100, value=2, description='N-Layers: ')
         widgets.interact(self.get_n_slider, N_slider=self.N_slider)
-        
+        ###############################
         self.albedo_slider = widgets.FloatSlider(min=0, max=1, value=0.3, description='Albedo: ')
         widgets.interact(self.get_albedo_slider, albedo_slider=self.albedo_slider)
-        
+        ###############################
         self.S0_slider = widgets.IntSlider(min=10, max=10000, value=1368, description='$S_{0}$ ($W/m^2$): ')
         widgets.interact(self.get_S0_slider, S0_slider=self.S0_slider)
-        
-        self.heatflux_slider = widgets.IntSlider(min=10, max=1000, value=110, 
+        ###############################
+        self.heatflux_slider = widgets.IntSlider(min=0, max=1000, value=110, 
                                                  description='Heat Flux \nTotal ($W/m^2$): ')
         widgets.interact(self.get_heatflux_slider, heatflux_slider=self.heatflux_slider)
-        
-        self.togglebutton = widgets.ToggleButtons(options=['Tropics', 'Poles'], description='Profile location?', disabled=False, 
+        ###############################
+        self.togglebutton = widgets.ToggleButtons(options=['Tropics', 'Poles'], description='Location?', disabled=False, 
                                                   button_style='danger')
         widgets.interact(self.get_togglebutton, togglebutton=self.togglebutton)
-        
-        #self.pertub_button = widgets.ToggleButton(value=False, description='Perturbation?',
-        #                                         disabled=False, button_style='info',
-        #                                         tooltip='Description')
-        #widgets.interact(self.get_perturbation, calc_button=self.pertub_button)
-        
-        self.calc_button = widgets.ToggleButton(value=False, description='Radiate',
-                                                 disabled=False, button_style='info',
-                                                 tooltip='Description')
+        ###############################
+        self.pertub_button = widgets.ToggleButton(value=False, description='Perturbation?', disabled=False, 
+                                                  button_style='success', tooltip='Description')
+        widgets.interact(self.get_perturbation, pertub_button=self.pertub_button)
+        ###############################
+        self.calc_button = widgets.ToggleButton(value=False, description='Radiate', disabled=False, button_style='info',
+                                                tooltip='Description')
         widgets.interact(self.get_temps, calc_button=self.calc_button)
     
     
@@ -52,11 +51,20 @@ class n_layer_gui:
         self.heatflux = heatflux_slider
     def get_togglebutton(self, togglebutton):
         self.togglebutton = togglebutton                    
-    #def get_perturbation(self, pertub_button):
-        #self.perturbation = perturbation
-        #if self.perturb_button is True:
+    def get_perturbation(self, pertub_button):
+        self.pertub_button = pertub_button
+        if self.pertub_button is True:
+            self.layer_perturb = widgets.IntSlider(min=1, max=self.N, value=1, description='Which layer?: ')
+            widgets.interact(self.get_perturb_location, layer_perturb=self.layer_perturb)
             
+            self.perturb_magnitude = widgets.FloatText(value=1.0, description='$W/m^2$:', disabled=False)
+            widgets.interact(self.get_perturb_magnitude, perturb_magnitude=self.perturb_magnitude)
+    def get_perturb_location(self, layer_perturb):
+        self.layer_perturb = layer_perturb   
+    def get_perturb_magnitude(self, perturb_magnitude):
+        self.perturb_magnitude = perturb_magnitude  
         
+    
     def get_temps(self, calc_button):
         """
         Query whether track button has been toggled, and calculate the radiation matrix before plotting.
@@ -79,8 +87,6 @@ class n_layer_gui:
 
 
         """
-            
-   
         
         if self.calc_button.value is True:
             # Create some random emissivities to use, surface emissivity is always one, no emissivity should be zero
@@ -96,7 +102,9 @@ class n_layer_gui:
             
             upward_heatflux = utils.vertical_heat_flux_profile(self.N, self.heatflux, 'exponential')
             
-            forcings = utils.forcings_vector(self.N, insolation, upward_heatflux)
+            perturbation_vector = utils.perturbation_profile(self.N, self.layer_perturb, self.perturb_magnitude)
+            
+            forcings = utils.forcings_vector(self.N, insolation, upward_heatflux, perturbation_vector)
             
            
 
