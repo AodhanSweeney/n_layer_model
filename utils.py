@@ -114,10 +114,25 @@ def perturbation_profile(N, layer_for_perturbation, magnitude_of_perturbation):
     return(perturbation_profile)
     
 
-def forcings_vector(N, insolation, heat_flux_profile, perturbation_vector):
-    # Let all the forcings be zero for now, besides the insolation
+def forcings_vector(N, insolation, heat_flux_profile, SW_strat_absorption, perturbation_vector):
+    ## Initialize the forcings at zero
     forcings = np.zeros(N+1)
-    forcings[0] = insolation*-1
+    
+    # surface forcing is insolation less the stratospheric absorption
+    forcings[0] = insolation*-1 + SW_strat_absorption
+   
+    ## separate atmospheric layers into troposphere and stratosphere
+    ## subtract 1 layer from troposphere to allow for tropopause
+    N_troposphere = np.floor(0.85*N) - 1 
+    
+    N_tpause = 1
+    N_tpause_location = int(0.85*N) # layer index for the tropopause (layer 0 is surface)
+    
+    N_stratosphere = N - N_troposphere - N_tpause
+    
+    # stratospheric forcing will be spread uniformly over each strat layer
+    forcings[N_tpause_location+1:] = -SW_strat_absorption / N_stratosphere
+
     net_forcings = forcings - heat_flux_profile - perturbation_vector
     
     # Forcings should also be scaled by 1/sigma

@@ -23,6 +23,10 @@ class n_layer_gui:
         self.S0_slider = widgets.IntSlider(min=10, max=10000, value=1368, description='$S_{0}$ ($W/m^2$): ')
         widgets.interact(self.get_S0_slider, S0_slider=self.S0_slider)
         ###############################
+        self.SW_slider = widgets.IntSlider(min=0, max=100, value=3, 
+                                                            description='%SW in Stratosphere: ')
+        widgets.interact(self.get_SW_slider, SW_slider=self.SW_slider)
+        ###############################
         self.heatflux_slider = widgets.IntSlider(min=0, max=1000, value=110, 
                                                  description='Heat Flux \nTotal ($W/m^2$): ')
         widgets.interact(self.get_heatflux_slider, heatflux_slider=self.heatflux_slider)
@@ -47,6 +51,8 @@ class n_layer_gui:
         self.albedo = albedo_slider
     def get_S0_slider(self, S0_slider):
         self.S0 = S0_slider
+    def get_SW_slider(self, SW_slider):
+        self.SW_strat_absorption = SW_slider
     def get_heatflux_slider(self, heatflux_slider):
         self.heatflux = heatflux_slider
     def get_togglebutton(self, togglebutton):
@@ -104,7 +110,7 @@ class n_layer_gui:
             
             perturbation_vector = utils.perturbation_profile(self.N, self.layer_perturb, self.perturb_magnitude)
             
-            forcings = utils.forcings_vector(self.N, insolation, upward_heatflux, perturbation_vector)
+            forcings = utils.forcings_vector(self.N, insolation, upward_heatflux, self.SW_strat_absorption, perturbation_vector)
             
            
 
