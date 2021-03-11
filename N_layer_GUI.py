@@ -27,7 +27,7 @@ class n_layer_gui:
                                                             description='%SW in Stratosphere: ')
         widgets.interact(self.get_SW_slider, SW_slider=self.SW_slider)
         ###############################
-        self.heatflux_slider = widgets.IntSlider(min=0, max=1000, value=110, 
+        self.heatflux_slider = widgets.IntSlider(min=0, max=1000, value=0, 
                                                  description='Heat Flux \nTotal ($W/m^2$): ')
         widgets.interact(self.get_heatflux_slider, heatflux_slider=self.heatflux_slider)
         ###############################
