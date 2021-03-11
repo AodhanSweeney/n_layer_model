@@ -63,8 +63,12 @@ class n_layer_gui:
             self.layer_perturb = widgets.IntSlider(min=1, max=self.N, value=1, description='Which layer?: ')
             widgets.interact(self.get_perturb_location, layer_perturb=self.layer_perturb)
             
-            self.perturb_magnitude = widgets.FloatText(value=1.0, description='$W/m^2$:', disabled=False)
+            self.perturb_magnitude = widgets.FloatText(value=0.0, description='% emissivity:', disabled=False)
             widgets.interact(self.get_perturb_magnitude, perturb_magnitude=self.perturb_magnitude)
+            
+        elif self.pertub_button is False:
+            self.layer_perturb = 0
+            self.perturb_magnitude = 0
     def get_perturb_location(self, layer_perturb):
         self.layer_perturb = layer_perturb   
     def get_perturb_magnitude(self, perturb_magnitude):
@@ -99,6 +103,10 @@ class n_layer_gui:
             emmisivities = np.repeat(.05,self.N+1)
             emmisivities[0] = 1
             
+            emmisivities[self.layer_perturb] = (emmisivities[self.layer_perturb]*(self.perturb_magnitude/100)+
+                                                emmisivities[self.layer_perturb])
+            
+            
             # Now get our emissivity Matrix
             R_up_matrix = utils.R_up_matrix(self.N, emmisivities)
             total_emissivity_matrix = utils.emissivity_matrix(R_up_matrix, emmisivities)
@@ -108,11 +116,7 @@ class n_layer_gui:
             
             upward_heatflux = utils.vertical_heat_flux_profile(self.N, self.heatflux, 'exponential')
             
-            perturbation_vector = utils.perturbation_profile(self.N, self.layer_perturb, self.perturb_magnitude)
-            
-            forcings = utils.forcings_vector(self.N, insolation, upward_heatflux, self.SW_strat_absorption, perturbation_vector)
-            
-           
+            forcings = utils.forcings_vector(self.N, insolation, upward_heatflux, self.SW_strat_absorption)
 
             # Now find the temperature vector using the emissivity matrix and the forcings
             temperature_vector = utils.temperature(total_emissivity_matrix, forcings)

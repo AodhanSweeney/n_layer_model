@@ -107,14 +107,8 @@ def vertical_heat_flux_profile(N, total_vertical_heat_flux, profile_type):
         #downward_flux = np.insert(total_atmospheric_heatflux_profile[:-1], 0, 0)
         return(total_atmospheric_heatflux_profile)#, downward_flux)
     
-def perturbation_profile(N, layer_for_perturbation, magnitude_of_perturbation):
-    number_of_layers = N+1
-    perturbation_profile = np.zeros(number_of_layers)
-    perturbation_profile[layer_for_perturbation] = magnitude_of_perturbation
-    return(perturbation_profile)
-    
 
-def forcings_vector(N, insolation, heat_flux_profile, SW_strat_absorption, perturbation_vector):
+def forcings_vector(N, insolation, heat_flux_profile, SW_strat_absorption):
     ## Initialize the forcings at zero
     forcings = np.zeros(N+1)
     
@@ -133,7 +127,7 @@ def forcings_vector(N, insolation, heat_flux_profile, SW_strat_absorption, pertu
     # stratospheric forcing will be spread uniformly over each strat layer
     forcings[N_tpause_location+1:] = -SW_strat_absorption / N_stratosphere
 
-    net_forcings = forcings - heat_flux_profile - perturbation_vector
+    net_forcings = forcings - heat_flux_profile 
     
     # Forcings should also be scaled by 1/sigma
     sigma = 5.67e-8 # W * m^-2 * K^-4
