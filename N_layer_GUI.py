@@ -150,7 +150,7 @@ class n_layer_gui:
 
             ## load profiles that don't need to be repeated in the monte carlo loop
             insolation = (self.S0/4)*(1 - self.albedo)
-            upward_heatflux = utils.vertical_heat_flux_profile(self.N, self.heatflux, 'exponential')           
+            upward_heatflux = utils.vertical_heat_flux_profile(self.N, self.heatflux, 'tanh')           
             forcings = utils.forcings_vector(self.N, insolation, upward_heatflux, 
                                                  self.SW_strat_absorption)
             
