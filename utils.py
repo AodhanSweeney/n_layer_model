@@ -92,9 +92,13 @@ def vertical_heat_flux_profile(N, total_vertical_heat_flux, profile_type):
         actual_lin_dec_heat_flux_profile = normalized_linear_decreasing_heat_flux*total_vertical_heat_flux
         total_atmospheric_heatflux_profile = np.zeros(number_of_layers)
 
+        ## net of incoming from layer below, starting from 1st atmos layer ##
+        actual_lin_dec_heat_flux_profile[1:] -= actual_lin_dec_heat_flux_profile[:-1]
+        
         total_atmospheric_heatflux_profile[:number_of_layers_w_heat_flux] = actual_lin_dec_heat_flux_profile
         #downward_flux = np.insert(total_atmospheric_heatflux_profile[:-1], 0, 0)
         return(total_atmospheric_heatflux_profile)#, downward_flux)
+    
     elif profile_type == 'exponential':
         exponentially_decreasing_heat_flux = np.geomspace(1, 1e-5, number_of_layers_w_heat_flux)
         normalized_exp_decreasing_heat_flux = exponentially_decreasing_heat_flux/np.sum(exponentially_decreasing_heat_flux)
@@ -103,9 +107,30 @@ def vertical_heat_flux_profile(N, total_vertical_heat_flux, profile_type):
         actual_exp_dec_heat_flux_profile = normalized_exp_decreasing_heat_flux*total_vertical_heat_flux
         total_atmospheric_heatflux_profile = np.zeros(number_of_layers)
 
+        ## net of incoming from layer below, starting from 1st atmos layer ##
+        actual_exp_dec_heat_flux_profile[1:] -= actual_exp_dec_heat_flux_profile[:-1]
+        
         total_atmospheric_heatflux_profile[:number_of_layers_w_heat_flux] = actual_exp_dec_heat_flux_profile
         #downward_flux = np.insert(total_atmospheric_heatflux_profile[:-1], 0, 0)
         return(total_atmospheric_heatflux_profile)#, downward_flux)
+    
+    elif profile_type == 'tanh':
+        xx = np.flip(np.linspace(0,np.pi,number_of_layers_w_heat_flux) - np.pi)
+        yy = np.tanh(xx) + 1
+        normalized_tanh_decreasing_heat_flux = yy/yy.sum()
+        
+        # Now we can create the heat flux profile which spans the first 85% of layers and sums to total heat flux
+        actual_tanh_dec_heat_flux_profile = normalized_tanh_decreasing_heat_flux*total_vertical_heat_flux
+        
+        ### VTC edits ###
+        ## net of incoming from layer below, starting from 1st atmos layer ##
+        actual_tanh_dec_heat_flux_profile[1:] -= actual_tanh_dec_heat_flux_profile[:-1]
+        #################
+        
+        total_atmospheric_heatflux_profile = np.zeros(number_of_layers)
+
+        total_atmospheric_heatflux_profile[:number_of_layers_w_heat_flux] = actual_tanh_dec_heat_flux_profile
+        return(total_atmospheric_heatflux_profile)
     
 
 def forcings_vector(N, insolation, heat_flux_profile, SW_strat_absorption):
@@ -127,7 +152,7 @@ def forcings_vector(N, insolation, heat_flux_profile, SW_strat_absorption):
     # stratospheric forcing will be spread uniformly over each strat layer
     forcings[N_tpause_location+1:] = -SW_strat_absorption / N_stratosphere
 
-    net_forcings = forcings - heat_flux_profile 
+    net_forcings = forcings + heat_flux_profile 
     
     # Forcings should also be scaled by 1/sigma
     sigma = 5.67e-8 # W * m^-2 * K^-4
