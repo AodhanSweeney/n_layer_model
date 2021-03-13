@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import ipywidgets as widgets
+from ipywidgets import Layout
 from scipy import interpolate
 # Import radiative transfer utils box
 import utils
@@ -14,7 +15,7 @@ class n_layer_gui:
         
         """
         ###############################
-        self.N_slider = widgets.IntSlider(min=3, max=20, value=2, description='N-Layers: ')
+        self.N_slider = widgets.IntSlider(min=3, max=20, value=3, description='N-Layers: ')
         widgets.interact(self.get_n_slider, N_slider=self.N_slider)
         ###############################
         self.albedo_slider = widgets.FloatSlider(min=0, max=1, value=0.3, description='Albedo: ')
@@ -23,23 +24,22 @@ class n_layer_gui:
         self.S0_slider = widgets.IntSlider(min=10, max=10000, value=1368, description='$S_{0}$ ($W/m^2$): ')
         widgets.interact(self.get_S0_slider, S0_slider=self.S0_slider)
         ###############################
-        self.SW_slider = widgets.IntSlider(min=0, max=100, value=3, 
-                                                            description='%SW absorbed\nStratosphere: ')
+        style = {'description_width': 'initial'}
+        self.SW_slider = widgets.IntSlider(min=0, max=100, value=3, style=style, 
+                                           layout=Layout(width='45%', height='20px'),
+                                           description='SW absorbed in Stratosphere (%): ')
         widgets.interact(self.get_SW_slider, SW_slider=self.SW_slider)
         ###############################
-        self.heatflux_slider = widgets.IntSlider(min=0, max=1000, value=0, 
-                                                 description='Surface Flux\n($W/m^2$): ')
+        self.heatflux_slider = widgets.IntSlider(min=0, max=500, value=0, style=style,
+                                                 layout=Layout(width='35%', height='20px'),
+                                                 description='Surface Heat Flux ($W/m^2$): ')
         widgets.interact(self.get_heatflux_slider, heatflux_slider=self.heatflux_slider)
         ###############################
-        self.togglebutton = widgets.ToggleButtons(options=['Tropics', 'Poles'], description='Location?', disabled=False, 
-                                                  button_style='danger')
-        widgets.interact(self.get_togglebutton, togglebutton=self.togglebutton)
-        ###############################
         self.pertub_button = widgets.ToggleButton(value=False, description='Perturbation?', disabled=False, 
-                                                  button_style='success', tooltip='Description')
+                                                  button_style='info', tooltip='Description')
         widgets.interact(self.get_perturbation, pertub_button=self.pertub_button)
         ###############################
-        self.calc_button = widgets.ToggleButton(value=False, description='Radiate', disabled=False, button_style='info',
+        self.calc_button = widgets.ToggleButton(value=False, description='Radiate', disabled=False, button_style='danger',
                                                 tooltip='Description')
         widgets.interact(self.get_temps, calc_button=self.calc_button)
     
@@ -55,8 +55,6 @@ class n_layer_gui:
         self.SW_strat_absorption = SW_slider
     def get_heatflux_slider(self, heatflux_slider):
         self.heatflux = heatflux_slider
-    def get_togglebutton(self, togglebutton):
-        self.togglebutton = togglebutton                    
     def get_perturbation(self, pertub_button):
         self.pertub_button = pertub_button
         if self.pertub_button is True:
@@ -88,10 +86,8 @@ class n_layer_gui:
         N_tpause_location = int(0.85*self.N) # layer index for tropopause (surface is zero index)
         N_stratosphere = self.N - N_troposphere - N_tpause
         
-        if self.togglebutton == 'Tropics':
-            era5_profile = np.load('tropical_profile.npy')
-        elif self.togglebutton == 'Poles':
-            era5_profile = np.load('polar_profile.npy')
+        # Load Tropical Profile 
+        era5_profile = np.load('tropical_profile.npy')
         
         ## find tropopause index in the ERA5 data (take the first inversion, polar upper atmos is complex)
         era5_N_of_tpause = np.where(np.r_[True, era5_profile[1:] < era5_profile[:-1]] & 
@@ -246,10 +242,28 @@ class n_layer_gui:
             emmisivities_perturb[self.layer_perturb] = emmisivities[self.layer_perturb]*(1+self.perturb_magnitude/100)
             
             R_up_matrix = utils.R_up_matrix(self.N, emmisivities_perturb)
-            total_emissivity_matrix_perturb = utils.emissivity_matrix(R_up_matrix, emmisivities_perturb)
-            temperature_vector_perturb = utils.temperature(total_emissivity_matrix_perturb, forcings)
+            
+            total_emissivity_matrix = utils.emissivity_matrix(R_up_matrix, emmisivities_perturb)
+            
+            temperature_vector_perturb = utils.temperature(total_emissivity_matrix, forcings)
+            
+            if self.pertub_button == True:
+                R_up_matrix_reference = utils.R_up_matrix(self.N, emmisivities)
+                emissivity_matrix_reference = utils.emissivity_matrix(R_up_matrix_reference, emmisivities)
+                
+                TOA_instantaneous_forcing = utils.perturb_forcing(total_emissivity_matrix,
+                                                                  emissivity_matrix_reference,
+                                                                  temperature_M[best_index_all].squeeze())
+                print('Instantaneous Radiative Forcing of Perturbation:', 
+                      np.around(TOA_instantaneous_forcing, 3),  'W/m\N{SUPERSCRIPT TWO}')
+                
+                deltaT = temperature_vector_perturb - (temperature_M[best_index_all]).squeeze()
+                dT_pert = str(np.round(deltaT[0],2))
+                print('Change in Surface Temperature due to Perturbation = ' + dT_pert)
 
-            fig, axs = plt.subplots(1,3, figsize=(12,8))
+                
+
+            fig, axs = plt.subplots(1,3, figsize=(11,6))
 
             ## Perturbation plots
             if self.pertub_button is True:
@@ -257,15 +271,6 @@ class n_layer_gui:
                             marker='o',mfc='white',mec='k', color='k',lw=1,alpha=0.9,ls='--',label='Perturbation')
                 axs[2].plot(temperature_vector_perturb, range(0, self.N+1), 
                             marker='o',mfc='white',mec='firebrick', lw=1,color='firebrick',alpha=0.9,ls='--',label='Perturbation')
-
-#             ## no SW, no convection plots
-#             if (self.SW_strat_absorption > 0):
-#                 axs[2].plot(temperature_vector_no_SW, range(0, self.N+1), 
-#                             marker='o',lw=1,color='seagreen',alpha=0.7,ls='-',label='No SW in strat.')
-
-#             if (self.heatflux > 0):
-#                 axs[2].plot(temperature_vector_no_convection, range(0, self.N+1), 
-#                             marker='o',lw=1,color='dodgerblue',alpha=0.7,ls='-',label='No convection')
                 
             ### Control plot
             axs[0].plot(emissivity_Nlayers_M[:,best_index_all].squeeze()[1:], range(1, self.N+1), 
@@ -278,16 +283,17 @@ class n_layer_gui:
             axs[0].legend()
             axs[0].grid(alpha=0.3)
 
-            axs[1].set_xlabel('Vertical Heat Flux (W/$m^2$)')
+            axs[1].set_xlabel('Net Heat Flux (W/$m^2$)')
             axs[1].plot(upward_heatflux, range(0, self.N+1), 
-                        marker='o', color='dodgerblue')
+                        marker='o', color='dodgerblue',label='Convection\nParameterization')
             axs[1].set_ylim(0,self.N+0.2)
             axs[1].set_yticks(np.arange(self.N+1))
             axs[1].axvline(0,c='0.5',lw=1)
+            axs[1].legend()
             axs[1].grid(alpha=0.3)
 
             axs[2].plot(temperature_M[best_index_all].squeeze(), range(0, self.N+1), 
-                        color='firebrick', marker='o', lw=3,label='Most realistic profile')
+                        color='firebrick', marker='o', lw=3,label='Control')
             axs[2].set_xlabel('Temperature ($\degree$K)')
             axs[2].set_ylim(0,self.N+0.2)
             axs[2].set_yticks(np.arange(self.N+1))
@@ -296,11 +302,74 @@ class n_layer_gui:
             ## add ERA-5 plot, dont have to keep it
             axs[2].plot(profile_for_emissivities_all,
                         np.arange(len(profile_for_emissivities_all)),
-                        c='0.5',alpha=0.7,lw=1,label='ERA-5')
+                        c='k',alpha=0.7,lw=1,label='ERA-5')
             axs[2].legend()
             
             plt.tight_layout()
             plt.show()
             
+            #######################################################
+            ### additional plots, can comment out whole section ###
+#             fig, axs = plt.subplots(1,3, figsize=(11,6))
+
+#             ## no SW plot 
+#             if (self.SW_strat_absorption > 0):               
+#                 axs[0].plot(temperature_M[best_index_all].squeeze(), range(0, self.N+1), 
+#                             color='firebrick', marker='o', lw=3,label='Control')
+#                 axs[0].plot(temperature_vector_no_SW, range(0, self.N+1), 
+#                             marker='o',ls='--',lw=2,color='darkorange',alpha=0.8,label='No SW absorbed\nin stratosphere')
+#                 axs[0].set_xlabel('Temperature ($\degree$K)')
+#                 axs[0].set_ylim(0,self.N+0.2)
+#                 axs[0].set_yticks(np.arange(self.N+1))
+#                 axs[0].grid(alpha=0.3)
+#                 axs[0].set_ylabel('Layer number (n)')
+#                 axs[0].legend()
+            
+#             ## no convection plots
+#             if (self.heatflux > 0):
+#                 axs[1].plot(temperature_M[best_index_all].squeeze(), range(0, self.N+1), 
+#                             color='firebrick', marker='o', lw=3,label='Control')
+#                 axs[1].plot(temperature_vector_no_convection, range(0, self.N+1), 
+#                             marker='o',lw=2,color='dodgerblue',alpha=0.8,ls='--',label='No convection')
+#                 axs[1].set_xlabel('Temperature ($\degree$K)')
+#                 axs[1].set_ylim(0,self.N+0.2)
+#                 axs[1].set_yticks(np.arange(self.N+1))
+#                 axs[1].grid(alpha=0.3)
+#                 axs[1].set_ylim(0,self.N+0.2)
+#                 axs[1].set_yticks(np.arange(self.N+1))
+#                 axs[1].legend()
+#                 axs[1].grid(alpha=0.3)
+
+#             ## delta T perturbation plot    
+#             if self.pertub_button is True:
+#                 axs[2].plot(deltaT, range(0, self.N+1), 
+#                             marker='o',mfc='white',mec='firebrick',
+#                             color='firebrick',lw=2,alpha=1,ls='--',label='Perturbation\n$\Delta$T vs. Control')
+#                 axs[2].set_xlabel('$\Delta$T ($\degree$K)')
+#                 axs[2].axvline(0,lw=1,c='k',alpha=0.5)
+#                 axs[2].set_ylim(0,self.N+0.2)
+#                 axs[2].set_yticks(np.arange(self.N+1))
+#                 axs[2].grid(alpha=0.3)
+#                 axs[2].set_ylim(0,self.N+0.2)
+#                 axs[2].set_yticks(np.arange(self.N+1))
+#                 axs[2].legend()
+#                 axs[2].grid(alpha=0.3)
+                
+#             plt.tight_layout()
+#             plt.show()
+            
+#             control_Ts = (temperature_M[best_index_all].squeeze())[0]
+#             if (self.SW_strat_absorption > 0):
+#                 dT_sw = str(np.round(temperature_vector_no_SW[0] - control_Ts,1))
+#                 print('No SW: ΔTAS = ' + dT_sw)
+#             if (self.heatflux > 0):
+#                 dT_conv = str(np.round(temperature_vector_no_convection[0] - control_Ts,1))
+#                 print('No convection: ΔTAS = ' + dT_conv)
+#             if self.pertub_button is True:
+#                 dT_pert = str(np.round(deltaT[0],2))
+#                 print('Emissivity perturbation: ΔTAS = ' + dT_pert)
+            
+            ################ end additional plots #################
+            #######################################################
             
             self.calc_button.value = False

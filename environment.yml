@@ -1,0 +1,8 @@
+name: Nlayer-environment
+channels:
+  - conda-forge
+dependencies:
+  - numpy
+  - matplotlib
+  - ipywidgets
+  - scipy
