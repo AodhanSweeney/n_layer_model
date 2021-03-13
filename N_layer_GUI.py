@@ -24,11 +24,11 @@ class n_layer_gui:
         widgets.interact(self.get_S0_slider, S0_slider=self.S0_slider)
         ###############################
         self.SW_slider = widgets.IntSlider(min=0, max=100, value=3, 
-                                                            description='%SW in Stratosphere: ')
+                                                            description='%SW absorbed\nStratosphere: ')
         widgets.interact(self.get_SW_slider, SW_slider=self.SW_slider)
         ###############################
         self.heatflux_slider = widgets.IntSlider(min=0, max=1000, value=0, 
-                                                 description='Heat Flux \nTotal ($W/m^2$): ')
+                                                 description='Surface Flux\n($W/m^2$): ')
         widgets.interact(self.get_heatflux_slider, heatflux_slider=self.heatflux_slider)
         ###############################
         self.togglebutton = widgets.ToggleButtons(options=['Tropics', 'Poles'], description='Location?', disabled=False, 
@@ -114,7 +114,6 @@ class n_layer_gui:
         
         
         if self.calc_button.value is True:
-            print("Running...")
             
             #### MONTE CARLO ####
             ### M realizations of possible emmisivity profiles for mr. monte carlo
@@ -230,42 +229,27 @@ class n_layer_gui:
             best_index_all = np.where(error == error.min()) 
             
             
+            ### Additional solution without convection ###
+            zero_heatflux = np.zeros(len(upward_heatflux))
+            forcings_no_convection = utils.forcings_vector(self.N, insolation, zero_heatflux, 
+                                                 self.SW_strat_absorption)
+            temperature_vector_no_convection = utils.temperature(total_emissivity_matrix, forcings_no_convection)
+            
+            ### Additional solution without SW absorb ###
+            zero_SW = 0
+            forcings_no_SW = utils.forcings_vector(self.N, insolation, upward_heatflux, zero_SW)
+            temperature_vector_no_SW = utils.temperature(total_emissivity_matrix, forcings_no_SW)
+            
             ### Additional solution for the perturbation ###
             emmisivities = emissivity_Nlayers_M[:,best_index_all].squeeze()
             emmisivities_perturb = emmisivities.copy()
             emmisivities_perturb[self.layer_perturb] = emmisivities[self.layer_perturb]*(1+self.perturb_magnitude/100)
             
             R_up_matrix = utils.R_up_matrix(self.N, emmisivities_perturb)
-            total_emissivity_matrix = utils.emissivity_matrix(R_up_matrix, emmisivities_perturb)
-            temperature_vector_perturb = utils.temperature(total_emissivity_matrix, forcings)
-            
-            """
-            ### KEEPING OLD VERSION TEMPORARILY ###
-            # Create some random emissivities to use, surface emissivity is always one, no emissivity should be zero
-            emmisivities = np.repeat(.05,self.N+1)
-            emmisivities[0] = 1
-            
-            emmisivities[self.layer_perturb] = (emmisivities[self.layer_perturb]*(self.perturb_magnitude/100)+
-                                                emmisivities[self.layer_perturb])
-            
-            
-            # Now get our emissivity Matrix
-            R_up_matrix = utils.R_up_matrix(self.N, emmisivities)
-            total_emissivity_matrix = utils.emissivity_matrix(R_up_matrix, emmisivities)
+            total_emissivity_matrix_perturb = utils.emissivity_matrix(R_up_matrix, emmisivities_perturb)
+            temperature_vector_perturb = utils.temperature(total_emissivity_matrix_perturb, forcings)
 
-            # We also need our forcings vector
-            insolation = (self.S0/4)*(1 - self.albedo)
-            
-            upward_heatflux = utils.vertical_heat_flux_profile(self.N, self.heatflux, 'exponential')
-            
-            forcings = utils.forcings_vector(self.N, insolation, upward_heatflux, self.SW_strat_absorption)
-
-            # Now find the temperature vector using the emissivity matrix and the forcings
-            temperature_vector = utils.temperature(total_emissivity_matrix, forcings)
-            """
-
-
-            fig, axs = plt.subplots(1,3, figsize=(12,6))
+            fig, axs = plt.subplots(1,3, figsize=(12,8))
 
             ## Perturbation plots
             if self.pertub_button is True:
@@ -273,6 +257,15 @@ class n_layer_gui:
                             marker='o',mfc='white',mec='k', color='k',lw=1,alpha=0.9,ls='--',label='Perturbation')
                 axs[2].plot(temperature_vector_perturb, range(0, self.N+1), 
                             marker='o',mfc='white',mec='firebrick', lw=1,color='firebrick',alpha=0.9,ls='--',label='Perturbation')
+
+#             ## no SW, no convection plots
+#             if (self.SW_strat_absorption > 0):
+#                 axs[2].plot(temperature_vector_no_SW, range(0, self.N+1), 
+#                             marker='o',lw=1,color='seagreen',alpha=0.7,ls='-',label='No SW in strat.')
+
+#             if (self.heatflux > 0):
+#                 axs[2].plot(temperature_vector_no_convection, range(0, self.N+1), 
+#                             marker='o',lw=1,color='dodgerblue',alpha=0.7,ls='-',label='No convection')
                 
             ### Control plot
             axs[0].plot(emissivity_Nlayers_M[:,best_index_all].squeeze()[1:], range(1, self.N+1), 
@@ -290,10 +283,11 @@ class n_layer_gui:
                         marker='o', color='dodgerblue')
             axs[1].set_ylim(0,self.N+0.2)
             axs[1].set_yticks(np.arange(self.N+1))
+            axs[1].axvline(0,c='0.5',lw=1)
             axs[1].grid(alpha=0.3)
 
             axs[2].plot(temperature_M[best_index_all].squeeze(), range(0, self.N+1), 
-                        color='firebrick', marker='o', linewidth=3,label='Most realistic profile')
+                        color='firebrick', marker='o', lw=3,label='Most realistic profile')
             axs[2].set_xlabel('Temperature ($\degree$K)')
             axs[2].set_ylim(0,self.N+0.2)
             axs[2].set_yticks(np.arange(self.N+1))
@@ -304,6 +298,9 @@ class n_layer_gui:
                         np.arange(len(profile_for_emissivities_all)),
                         c='0.5',alpha=0.7,lw=1,label='ERA-5')
             axs[2].legend()
+            
+            plt.tight_layout()
+            plt.show()
             
             
             self.calc_button.value = False
