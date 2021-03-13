@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import ipywidgets as widgets
+from ipywidgets import Layout
 from scipy import interpolate
 # Import radiative transfer utils box
 import utils
@@ -23,17 +24,16 @@ class n_layer_gui:
         self.S0_slider = widgets.IntSlider(min=10, max=10000, value=1368, description='$S_{0}$ ($W/m^2$): ')
         widgets.interact(self.get_S0_slider, S0_slider=self.S0_slider)
         ###############################
-        self.SW_slider = widgets.IntSlider(min=0, max=100, value=3, 
-                                                            description='%SW in Stratosphere: ')
+        style = {'description_width': 'initial'}
+        self.SW_slider = widgets.IntSlider(min=0, max=100, value=3, style=style, 
+                                           layout=Layout(width='45%', height='20px'),
+                                           description='SW absorbed in Stratosphere (%): ')
         widgets.interact(self.get_SW_slider, SW_slider=self.SW_slider)
         ###############################
-        self.heatflux_slider = widgets.IntSlider(min=0, max=1000, value=0, 
-                                                 description='Heat Flux \nTotal ($W/m^2$): ')
+        self.heatflux_slider = widgets.IntSlider(min=0, max=1000, value=0, style=style,
+                                                 layout=Layout(width='35%', height='20px'),
+                                                 description='Net Heat Flux ($W/m^2$): ')
         widgets.interact(self.get_heatflux_slider, heatflux_slider=self.heatflux_slider)
-        ###############################
-        self.togglebutton = widgets.ToggleButtons(options=['Tropics', 'Poles'], description='Location?', disabled=False, 
-                                                  button_style='success')
-        widgets.interact(self.get_togglebutton, togglebutton=self.togglebutton)
         ###############################
         self.pertub_button = widgets.ToggleButton(value=False, description='Perturbation?', disabled=False, 
                                                   button_style='info', tooltip='Description')
@@ -54,9 +54,7 @@ class n_layer_gui:
     def get_SW_slider(self, SW_slider):
         self.SW_strat_absorption = SW_slider
     def get_heatflux_slider(self, heatflux_slider):
-        self.heatflux = heatflux_slider
-    def get_togglebutton(self, togglebutton):
-        self.togglebutton = togglebutton                    
+        self.heatflux = heatflux_slider                  
     def get_perturbation(self, pertub_button):
         self.pertub_button = pertub_button
         if self.pertub_button is True:
@@ -88,10 +86,8 @@ class n_layer_gui:
         N_tpause_location = int(0.85*self.N) # layer index for tropopause (surface is zero index)
         N_stratosphere = self.N - N_troposphere - N_tpause
         
-        if self.togglebutton == 'Tropics':
-            era5_profile = np.load('tropical_profile.npy')
-        elif self.togglebutton == 'Poles':
-            era5_profile = np.load('polar_profile.npy')
+        # Load Tropical Profile 
+        era5_profile = np.load('tropical_profile.npy')
         
         ## find tropopause index in the ERA5 data (take the first inversion, polar upper atmos is complex)
         era5_N_of_tpause = np.where(np.r_[True, era5_profile[1:] < era5_profile[:-1]] & 
@@ -297,7 +293,7 @@ class n_layer_gui:
             axs[0].legend()
             axs[0].grid(alpha=0.3)
 
-            axs[1].set_xlabel('Vertical Heat Flux (W/$m^2$)')
+            axs[1].set_xlabel('Net Heat Flux (W/$m^2$)')
             axs[1].plot(upward_heatflux, range(0, self.N+1), 
                         marker='o', color='dodgerblue')
             axs[1].set_ylim(0,self.N+0.2)
