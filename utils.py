@@ -79,57 +79,60 @@ def emissivity_matrix(R_up_matrix, emissivities):
     emissivity_matrix = recieved_radiation_matrix + emissivities_diagonal
     return(emissivity_matrix)
 
-def vertical_heat_flux_profile(N, total_vertical_heat_flux, profile_type):
-    number_of_layers = N+1
+def vertical_heat_flux_profile(N, surf_vertical_heat_flux, profile_type):
+    
     # Stratosphere will be only radiatively coupled, so only have heatflux for bottom 85% of layers
-    number_of_layers_w_heat_flux = int(number_of_layers*0.85)
+    # includes surface; tropopause will only receive heat from below
+    N_w_heat_flux = int(N*0.85)
     
     if profile_type == 'linear':
-        linearly_decreasing_heat_flux = np.linspace(1, 0, number_of_layers_w_heat_flux)
-        normalized_linear_decreasing_heat_flux = linearly_decreasing_heat_flux/np.sum(linearly_decreasing_heat_flux)
-
-        # Now we can create the heat flux profile which spans the first 85% of layers and sums to total heat flux
-        actual_lin_dec_heat_flux_profile = normalized_linear_decreasing_heat_flux*total_vertical_heat_flux
-        total_atmospheric_heatflux_profile = np.zeros(number_of_layers)
-
-        ## net of incoming from layer below, starting from 1st atmos layer ##
-        actual_lin_dec_heat_flux_profile[1:] -= actual_lin_dec_heat_flux_profile[:-1]
+        linearly_decreasing_heat_flux = np.linspace(1, 0, N_w_heat_flux)
         
-        total_atmospheric_heatflux_profile[:number_of_layers_w_heat_flux] = actual_lin_dec_heat_flux_profile
-        #downward_flux = np.insert(total_atmospheric_heatflux_profile[:-1], 0, 0)
-        return(total_atmospheric_heatflux_profile)#, downward_flux)
+        ## normalizing rebases to the surface heat flux (SHF has value = 1) (extraneous for linear case)
+        normalized_linear_decreasing_heat_flux = linearly_decreasing_heat_flux/linearly_decreasing_heat_flux[0]
+
+        # Now we can create upward heat flux profile which stops below tropopause
+        actual_lin_dec_heat_flux_profile = normalized_linear_decreasing_heat_flux*surf_vertical_heat_flux
+        total_atmospheric_heatflux_profile = np.zeros(N+1)
+        total_atmospheric_heatflux_profile[:N_w_heat_flux] = actual_lin_dec_heat_flux_profile
+
+        ## get net flux by subtracting incoming heat flux from layer below
+        total_atmospheric_heatflux_profile[1:N_w_heat_flux+1] -= total_atmospheric_heatflux_profile[:N_w_heat_flux]
+        
+        return(total_atmospheric_heatflux_profile)
     
     elif profile_type == 'exponential':
-        exponentially_decreasing_heat_flux = np.geomspace(1, 1e-5, number_of_layers_w_heat_flux)
-        normalized_exp_decreasing_heat_flux = exponentially_decreasing_heat_flux/np.sum(exponentially_decreasing_heat_flux)
-
-        # Now we can create the heat flux profile which spans the first 85% of layers and sums to total heat flux
-        actual_exp_dec_heat_flux_profile = normalized_exp_decreasing_heat_flux*total_vertical_heat_flux
-        total_atmospheric_heatflux_profile = np.zeros(number_of_layers)
-
-        ## net of incoming from layer below, starting from 1st atmos layer ##
-        actual_exp_dec_heat_flux_profile[1:] -= actual_exp_dec_heat_flux_profile[:-1]
+        exponentially_decreasing_heat_flux = np.geomspace(1, 1e-5, N_w_heat_flux)
         
-        total_atmospheric_heatflux_profile[:number_of_layers_w_heat_flux] = actual_exp_dec_heat_flux_profile
-        #downward_flux = np.insert(total_atmospheric_heatflux_profile[:-1], 0, 0)
-        return(total_atmospheric_heatflux_profile)#, downward_flux)
+        ## normalizing rebases to the surface heat flux (SHF has value = 1) (extraneous for exponential case)
+        normalized_exp_decreasing_heat_flux = exponentially_decreasing_heat_flux/exponentially_decreasing_heat_flux[0]
+
+        # Now we can create upward heat flux profile which stops below tropopause
+        actual_exp_dec_heat_flux_profile = normalized_exp_decreasing_heat_flux*surf_vertical_heat_flux
+        total_atmospheric_heatflux_profile = np.zeros(N+1)
+        total_atmospheric_heatflux_profile[:N_w_heat_flux] = actual_exp_dec_heat_flux_profile
+
+        ## get net flux by subtracting incoming heat flux from layer below
+        total_atmospheric_heatflux_profile[1:N_w_heat_flux+1] -= total_atmospheric_heatflux_profile[:N_w_heat_flux]
+        
+        return(total_atmospheric_heatflux_profile)
     
     elif profile_type == 'tanh':
-        xx = np.flip(np.linspace(0,np.pi,number_of_layers_w_heat_flux) - np.pi)
+        xx = np.flip(np.linspace(0,np.pi,N_w_heat_flux) - np.pi)
         yy = np.tanh(xx) + 1
-        normalized_tanh_decreasing_heat_flux = yy/yy.sum()
         
-        # Now we can create the heat flux profile which spans the first 85% of layers and sums to total heat flux
-        actual_tanh_dec_heat_flux_profile = normalized_tanh_decreasing_heat_flux*total_vertical_heat_flux
+        ## normalizing rebases to the surface heat flux (SHF has value = 1)
+        normalized_tanh_decreasing_heat_flux = yy/yy[0]
         
-        ### VTC edits ###
-        ## net of incoming from layer below, starting from 1st atmos layer ##
-        actual_tanh_dec_heat_flux_profile[1:] -= actual_tanh_dec_heat_flux_profile[:-1]
-        #################
+        # Now we can create the upward heat flux profile which spans the first 85% of layers
+        actual_tanh_dec_heat_flux_profile = normalized_tanh_decreasing_heat_flux * surf_vertical_heat_flux
         
-        total_atmospheric_heatflux_profile = np.zeros(number_of_layers)
+        total_atmospheric_heatflux_profile = np.zeros(N+1)
+        total_atmospheric_heatflux_profile[:N_w_heat_flux] = actual_tanh_dec_heat_flux_profile
 
-        total_atmospheric_heatflux_profile[:number_of_layers_w_heat_flux] = actual_tanh_dec_heat_flux_profile
+        # get net flux by subtracting incoming heat flux from layer below
+        total_atmospheric_heatflux_profile[1:N_w_heat_flux+1] -= total_atmospheric_heatflux_profile[:N_w_heat_flux]
+        
         return(total_atmospheric_heatflux_profile)
     
 

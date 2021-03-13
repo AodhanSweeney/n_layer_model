@@ -30,9 +30,9 @@ class n_layer_gui:
                                            description='SW absorbed in Stratosphere (%): ')
         widgets.interact(self.get_SW_slider, SW_slider=self.SW_slider)
         ###############################
-        self.heatflux_slider = widgets.IntSlider(min=0, max=1000, value=0, style=style,
+        self.heatflux_slider = widgets.IntSlider(min=0, max=500, value=0, style=style,
                                                  layout=Layout(width='35%', height='20px'),
-                                                 description='Net Heat Flux ($W/m^2$): ')
+                                                 description='Surface Heat Flux ($W/m^2$): ')
         widgets.interact(self.get_heatflux_slider, heatflux_slider=self.heatflux_slider)
         ###############################
         self.pertub_button = widgets.ToggleButton(value=False, description='Perturbation?', disabled=False, 
@@ -54,7 +54,7 @@ class n_layer_gui:
     def get_SW_slider(self, SW_slider):
         self.SW_strat_absorption = SW_slider
     def get_heatflux_slider(self, heatflux_slider):
-        self.heatflux = heatflux_slider                  
+        self.heatflux = heatflux_slider
     def get_perturbation(self, pertub_button):
         self.pertub_button = pertub_button
         if self.pertub_button is True:
@@ -110,7 +110,6 @@ class n_layer_gui:
         
         
         if self.calc_button.value is True:
-            print("Running...")
             
             #### MONTE CARLO ####
             ### M realizations of possible emmisivity profiles for mr. monte carlo
@@ -226,6 +225,17 @@ class n_layer_gui:
             best_index_all = np.where(error == error.min()) 
             
             
+            ### Additional solution without convection ###
+            zero_heatflux = np.zeros(len(upward_heatflux))
+            forcings_no_convection = utils.forcings_vector(self.N, insolation, zero_heatflux, 
+                                                 self.SW_strat_absorption)
+            temperature_vector_no_convection = utils.temperature(total_emissivity_matrix, forcings_no_convection)
+            
+            ### Additional solution without SW absorb ###
+            zero_SW = 0
+            forcings_no_SW = utils.forcings_vector(self.N, insolation, upward_heatflux, zero_SW)
+            temperature_vector_no_SW = utils.temperature(total_emissivity_matrix, forcings_no_SW)
+            
             ### Additional solution for the perturbation ###
             emmisivities = emissivity_Nlayers_M[:,best_index_all].squeeze()
             emmisivities_perturb = emmisivities.copy()
@@ -246,34 +256,14 @@ class n_layer_gui:
                                                                   temperature_M[best_index_all].squeeze())
                 print('Instantaneous Radiative Forcing of Perturbation:', 
                       np.around(TOA_instantaneous_forcing, 3),  'W/m\N{SUPERSCRIPT TWO}')
-            
-            """
-            ### KEEPING OLD VERSION TEMPORARILY ###
-            # Create some random emissivities to use, surface emissivity is always one, no emissivity should be zero
-            emmisivities = np.repeat(.05,self.N+1)
-            emmisivities[0] = 1
-            
-            emmisivities[self.layer_perturb] = (emmisivities[self.layer_perturb]*(self.perturb_magnitude/100)+
-                                                emmisivities[self.layer_perturb])
-            
-            
-            # Now get our emissivity Matrix
-            R_up_matrix = utils.R_up_matrix(self.N, emmisivities)
-            total_emissivity_matrix = utils.emissivity_matrix(R_up_matrix, emmisivities)
+                
+                deltaT = temperature_vector_perturb - (temperature_M[best_index_all]).squeeze()
+                dT_pert = str(np.round(deltaT[0],2))
+                print('Change in Surface Temperature due to Perturbation = ' + dT_pert)
 
-            # We also need our forcings vector
-            insolation = (self.S0/4)*(1 - self.albedo)
-            
-            upward_heatflux = utils.vertical_heat_flux_profile(self.N, self.heatflux, 'exponential')
-            
-            forcings = utils.forcings_vector(self.N, insolation, upward_heatflux, self.SW_strat_absorption)
+                
 
-            # Now find the temperature vector using the emissivity matrix and the forcings
-            temperature_vector = utils.temperature(total_emissivity_matrix, forcings)
-            """
-
-
-            fig, axs = plt.subplots(1,3, figsize=(12,6))
+            fig, axs = plt.subplots(1,3, figsize=(11,6))
 
             ## Perturbation plots
             if self.pertub_button is True:
@@ -295,13 +285,15 @@ class n_layer_gui:
 
             axs[1].set_xlabel('Net Heat Flux (W/$m^2$)')
             axs[1].plot(upward_heatflux, range(0, self.N+1), 
-                        marker='o', color='dodgerblue')
+                        marker='o', color='dodgerblue',label='Convection\nParameterization')
             axs[1].set_ylim(0,self.N+0.2)
             axs[1].set_yticks(np.arange(self.N+1))
+            axs[1].axvline(0,c='0.5',lw=1)
+            axs[1].legend()
             axs[1].grid(alpha=0.3)
 
             axs[2].plot(temperature_M[best_index_all].squeeze(), range(0, self.N+1), 
-                        color='firebrick', marker='o', linewidth=3,label='Most realistic profile')
+                        color='firebrick', marker='o', lw=3,label='Control')
             axs[2].set_xlabel('Temperature ($\degree$K)')
             axs[2].set_ylim(0,self.N+0.2)
             axs[2].set_yticks(np.arange(self.N+1))
@@ -310,8 +302,74 @@ class n_layer_gui:
             ## add ERA-5 plot, dont have to keep it
             axs[2].plot(profile_for_emissivities_all,
                         np.arange(len(profile_for_emissivities_all)),
-                        c='0.5',alpha=0.7,lw=1,label='ERA-5')
+                        c='k',alpha=0.7,lw=1,label='ERA-5')
             axs[2].legend()
             
+            plt.tight_layout()
+            plt.show()
+            
+            #######################################################
+            ### additional plots, can comment out whole section ###
+#             fig, axs = plt.subplots(1,3, figsize=(11,6))
+
+#             ## no SW plot 
+#             if (self.SW_strat_absorption > 0):               
+#                 axs[0].plot(temperature_M[best_index_all].squeeze(), range(0, self.N+1), 
+#                             color='firebrick', marker='o', lw=3,label='Control')
+#                 axs[0].plot(temperature_vector_no_SW, range(0, self.N+1), 
+#                             marker='o',ls='--',lw=2,color='darkorange',alpha=0.8,label='No SW absorbed\nin stratosphere')
+#                 axs[0].set_xlabel('Temperature ($\degree$K)')
+#                 axs[0].set_ylim(0,self.N+0.2)
+#                 axs[0].set_yticks(np.arange(self.N+1))
+#                 axs[0].grid(alpha=0.3)
+#                 axs[0].set_ylabel('Layer number (n)')
+#                 axs[0].legend()
+            
+#             ## no convection plots
+#             if (self.heatflux > 0):
+#                 axs[1].plot(temperature_M[best_index_all].squeeze(), range(0, self.N+1), 
+#                             color='firebrick', marker='o', lw=3,label='Control')
+#                 axs[1].plot(temperature_vector_no_convection, range(0, self.N+1), 
+#                             marker='o',lw=2,color='dodgerblue',alpha=0.8,ls='--',label='No convection')
+#                 axs[1].set_xlabel('Temperature ($\degree$K)')
+#                 axs[1].set_ylim(0,self.N+0.2)
+#                 axs[1].set_yticks(np.arange(self.N+1))
+#                 axs[1].grid(alpha=0.3)
+#                 axs[1].set_ylim(0,self.N+0.2)
+#                 axs[1].set_yticks(np.arange(self.N+1))
+#                 axs[1].legend()
+#                 axs[1].grid(alpha=0.3)
+
+#             ## delta T perturbation plot    
+#             if self.pertub_button is True:
+#                 axs[2].plot(deltaT, range(0, self.N+1), 
+#                             marker='o',mfc='white',mec='firebrick',
+#                             color='firebrick',lw=2,alpha=1,ls='--',label='Perturbation\n$\Delta$T vs. Control')
+#                 axs[2].set_xlabel('$\Delta$T ($\degree$K)')
+#                 axs[2].axvline(0,lw=1,c='k',alpha=0.5)
+#                 axs[2].set_ylim(0,self.N+0.2)
+#                 axs[2].set_yticks(np.arange(self.N+1))
+#                 axs[2].grid(alpha=0.3)
+#                 axs[2].set_ylim(0,self.N+0.2)
+#                 axs[2].set_yticks(np.arange(self.N+1))
+#                 axs[2].legend()
+#                 axs[2].grid(alpha=0.3)
+                
+#             plt.tight_layout()
+#             plt.show()
+            
+#             control_Ts = (temperature_M[best_index_all].squeeze())[0]
+#             if (self.SW_strat_absorption > 0):
+#                 dT_sw = str(np.round(temperature_vector_no_SW[0] - control_Ts,1))
+#                 print('No SW: ΔTAS = ' + dT_sw)
+#             if (self.heatflux > 0):
+#                 dT_conv = str(np.round(temperature_vector_no_convection[0] - control_Ts,1))
+#                 print('No convection: ΔTAS = ' + dT_conv)
+#             if self.pertub_button is True:
+#                 dT_pert = str(np.round(deltaT[0],2))
+#                 print('Emissivity perturbation: ΔTAS = ' + dT_pert)
+            
+            ################ end additional plots #################
+            #######################################################
             
             self.calc_button.value = False
