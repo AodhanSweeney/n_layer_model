@@ -14,7 +14,7 @@ class n_layer_gui:
         
         """
         ###############################
-        self.N_slider = widgets.IntSlider(min=3, max=20, value=2, description='N-Layers: ')
+        self.N_slider = widgets.IntSlider(min=3, max=20, value=3, description='N-Layers: ')
         widgets.interact(self.get_n_slider, N_slider=self.N_slider)
         ###############################
         self.albedo_slider = widgets.FloatSlider(min=0, max=1, value=0.3, description='Albedo: ')
@@ -32,14 +32,14 @@ class n_layer_gui:
         widgets.interact(self.get_heatflux_slider, heatflux_slider=self.heatflux_slider)
         ###############################
         self.togglebutton = widgets.ToggleButtons(options=['Tropics', 'Poles'], description='Location?', disabled=False, 
-                                                  button_style='danger')
+                                                  button_style='success')
         widgets.interact(self.get_togglebutton, togglebutton=self.togglebutton)
         ###############################
         self.pertub_button = widgets.ToggleButton(value=False, description='Perturbation?', disabled=False, 
-                                                  button_style='success', tooltip='Description')
+                                                  button_style='info', tooltip='Description')
         widgets.interact(self.get_perturbation, pertub_button=self.pertub_button)
         ###############################
-        self.calc_button = widgets.ToggleButton(value=False, description='Radiate', disabled=False, button_style='info',
+        self.calc_button = widgets.ToggleButton(value=False, description='Radiate', disabled=False, button_style='danger',
                                                 tooltip='Description')
         widgets.interact(self.get_temps, calc_button=self.calc_button)
     
@@ -236,8 +236,20 @@ class n_layer_gui:
             emmisivities_perturb[self.layer_perturb] = emmisivities[self.layer_perturb]*(1+self.perturb_magnitude/100)
             
             R_up_matrix = utils.R_up_matrix(self.N, emmisivities_perturb)
+            
             total_emissivity_matrix = utils.emissivity_matrix(R_up_matrix, emmisivities_perturb)
+            
             temperature_vector_perturb = utils.temperature(total_emissivity_matrix, forcings)
+            
+            if self.pertub_button == True:
+                R_up_matrix_reference = utils.R_up_matrix(self.N, emmisivities)
+                emissivity_matrix_reference = utils.emissivity_matrix(R_up_matrix_reference, emmisivities)
+                
+                TOA_instantaneous_forcing = utils.perturb_forcing(total_emissivity_matrix,
+                                                                  emissivity_matrix_reference,
+                                                                  temperature_M[best_index_all].squeeze())
+                print('Instantaneous Radiative Forcing of Perturbation:', 
+                      np.around(TOA_instantaneous_forcing, 3),  'W/m\N{SUPERSCRIPT TWO}')
             
             """
             ### KEEPING OLD VERSION TEMPORARILY ###

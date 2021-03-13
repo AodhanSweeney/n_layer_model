@@ -165,7 +165,23 @@ def temperature(total_emissivity_matrix, forcings):
     Where total emissivity matrix is N+1 x N+1, T_i^4 is a column vector of N+1 and 
     forcings are another column vector, scaled by 1/sigma.
     """
-    
     inverse_of_emissivity_matrix = linalg.inv(total_emissivity_matrix)
     temperature_vector = forcings.dot(inverse_of_emissivity_matrix)
     return(np.array(temperature_vector)**(1/4))
+
+def perturb_forcing(perturbed_emissivity_matrix, original_emissivity_matrix, temperature_vector):
+    """
+    We have an matrix equation of (total_emissivity_matrix) X (T_i^4) = F_i
+    Where total emissivity matrix is N+1 x N+1, T_i^4 is a column vector of N+1 and 
+    forcings are another column vector, scaled by 1/sigma.
+    """
+    T_4_vector = temperature_vector**(4)
+    
+    perturb_forcings = perturbed_emissivity_matrix.dot(T_4_vector)
+    original_forcings = original_emissivity_matrix.dot(T_4_vector)
+        
+    difference = sum(perturb_forcings.tolist()[0]) - sum(original_forcings.tolist()[0])
+    
+    sigma = 5.67e-8
+    
+    return(-1*sigma*difference)
