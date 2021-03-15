@@ -110,6 +110,7 @@ class n_layer_gui:
         
         
         if self.calc_button.value is True:
+            print('running...')
             
             #### MONTE CARLO ####
             ### M realizations of possible emmisivity profiles for mr. monte carlo
